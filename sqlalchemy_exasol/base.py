@@ -62,97 +62,488 @@ from .constraints import DistributeByConstraint
 import re
 import logging
 
-logger=logging.getLogger("sqlalchemy_exasol")
+logger = logging.getLogger("sqlalchemy_exasol")
 
 AUTOCOMMIT_REGEXP = re.compile(
-    r'\s*(?:UPDATE|INSERT|CREATE|DELETE|DROP|ALTER|TRUNCATE|MERGE)',
-    re.I | re.UNICODE)
+    r"\s*(?:UPDATE|INSERT|CREATE|DELETE|DROP|ALTER|TRUNCATE|MERGE)", re.I | re.UNICODE
+)
 
 RESERVED_WORDS = {
-    'absolute', 'action', 'add', 'after', 'all', 'allocate', 'alter', 'and', 'any',
-    'append', 'are', 'array', 'as', 'asc', 'asensitive', 'assertion', 'at', 'attribute',
-    'authid', 'authorization', 'before', 'begin', 'between', 'bigint', 'binary', 'bit',
-    'blob', 'blocked', 'bool', 'boolean', 'both', 'by', 'byte', 'call', 'called',
-    'cardinality', 'cascade', 'cascaded', 'case', 'casespecific', 'cast', 'catalog',
-    'chain', 'char', 'character', 'character_set_catalog', 'character_set_name',
-    'character_set_schema', 'characteristics', 'check', 'checked', 'clob', 'close',
-    'coalesce', 'collate', 'collation', 'collation_catalog', 'collation_name',
-    'collation_schema', 'column', 'commit', 'condition', 'connect_by_iscycle',
-    'connect_by_isleaf', 'connect_by_root', 'connection', 'constant', 'constraint',
-    'constraint_state_default', 'constraints', 'constructor', 'contains', 'continue',
-    'control', 'convert', 'corresponding', 'create', 'cs', 'csv', 'cube', 'current',
-    'current_date', 'current_path', 'current_role', 'current_schema', 'current_session',
-    'current_statement', 'current_time', 'current_timestamp', 'current_user', 'cursor',
-    'cycle', 'data', 'datalink', 'date', 'datetime_interval_code',
-    'datetime_interval_precision', 'day', 'dbtimezone', 'deallocate', 'dec', 'decimal',
-    'declare', 'default', 'default_like_escape_character', 'deferrable', 'deferred',
-    'defined', 'definer', 'delete', 'deref', 'derived', 'desc', 'describe',
-    'descriptor', 'deterministic', 'disable', 'disabled', 'disconnect', 'dispatch',
-    'distinct', 'dlurlcomplete', 'dlurlpath', 'dlurlpathonly', 'dlurlscheme',
-    'dlurlserver', 'dlvalue', 'do', 'domain', 'double', 'drop', 'dynamic',
-    'dynamic_function', 'dynamic_function_code', 'each', 'else', 'elseif', 'elsif',
-    'emits', 'enable', 'enabled', 'end', 'end-exec', 'enforce', 'equals', 'errors',
-    'escape', 'except', 'exception', 'exec', 'execute', 'exists', 'exit', 'export',
-    'external', 'extract', 'false', 'fbv', 'fetch', 'file', 'final', 'first', 'float',
-    'following', 'for', 'forall', 'force', 'format', 'found', 'free', 'from', 'fs',
-    'full', 'function', 'general', 'generated', 'geometry', 'get', 'global', 'go',
-    'goto', 'grant', 'granted', 'group', 'groups', 'group_concat', 'grouping', 'having',
-    'high', 'hold', 'hour', 'identity', 'if', 'ifnull', 'immediate', 'implementation',
-    'import', 'in', 'index', 'indicator', 'inner', 'inout', 'input', 'insensitive',
-    'insert', 'instance', 'instantiable', 'int', 'integer', 'integrity', 'intersect',
-    'interval', 'into', 'inverse', 'invoker', 'is', 'iterate', 'join', 'key_member',
-    'key_type', 'large', 'last', 'lateral', 'ldap', 'leading', 'leave', 'left', 'level',
-    'like', 'limit', 'listagg', 'local', 'localtime', 'localtimestamp', 'locator',
-    'log', 'longvarchar', 'loop', 'low', 'map', 'match', 'matched', 'merge', 'method',
-    'minus', 'minute', 'mod', 'modifies', 'modify', 'module', 'month', 'names',
-    'national', 'natural', 'nchar', 'nclob', 'new', 'next', 'nls_date_format',
-    'nls_date_language', 'nls_first_day_of_week', 'nls_numeric_characters',
-    'nls_timestamp_format', 'no', 'nocycle', 'nologging', 'none', 'not', 'null',
-    'nullif', 'number', 'numeric', 'nvarchar', 'nvarchar2', 'object', 'of', 'off',
-    'old', 'on', 'only', 'open', 'option', 'options', 'or', 'order', 'ordering',
-    'ordinality', 'others', 'out', 'outer', 'output', 'over', 'overlaps', 'overlay',
-    'overriding', 'pad', 'parallel_enable', 'parameter', 'parameter_specific_catalog',
-    'parameter_specific_name', 'parameter_specific_schema', 'partial', 'path',
-    'permission', 'placing', 'plus', 'position', 'preceding', 'preferring', 'prepare',
-    'preserve', 'prior', 'privileges', 'procedure', 'profile', 'random', 'range',
-    'read', 'reads', 'real', 'recovery', 'recursive', 'ref', 'references',
-    'referencing', 'refresh', 'regexp_like', 'relative', 'release', 'rename', 'repeat',
-    'replace', 'restore', 'restrict', 'result', 'return', 'returned_length',
-    'returned_octet_length', 'returns', 'revoke', 'right', 'rollback', 'rollup',
-    'routine', 'row', 'rows', 'rowtype', 'savepoint', 'schema', 'scope', 'script',
-    'scroll', 'search', 'second', 'section', 'security', 'select', 'selective', 'self',
-    'sensitive', 'separator', 'sequence', 'session', 'session_user', 'sessiontimezone',
-    'set', 'sets', 'shortint', 'similar', 'smallint', 'some', 'source', 'space',
-    'specific', 'specifictype', 'sql', 'sql_bigint', 'sql_bit', 'sql_char', 'sql_date',
-    'sql_decimal', 'sql_double', 'sql_float', 'sql_integer', 'sql_longvarchar',
-    'sql_numeric', 'sql_preprocessor_script', 'sql_real', 'sql_smallint',
-    'sql_timestamp', 'sql_tinyint', 'sql_type_date', 'sql_type_timestamp',
-    'sql_varchar', 'sqlexception', 'sqlstate', 'sqlwarning', 'start', 'state',
-    'statement', 'static', 'structure', 'style', 'substring', 'subtype', 'sysdate',
-    'system', 'system_user', 'systimestamp', 'table', 'temporary', 'text', 'then',
-    'time', 'timestamp', 'timezone_hour', 'timezone_minute', 'tinyint', 'to',
-    'trailing', 'transaction', 'transform', 'transforms', 'translation', 'treat',
-    'trigger', 'trim', 'true', 'truncate', 'under', 'union', 'unique', 'unknown',
-    'unlink', 'unnest', 'until', 'update', 'usage', 'user', 'using', 'value', 'values',
-    'varchar', 'varchar2', 'varray', 'verify', 'view', 'when', 'whenever', 'where',
-    'while', 'window', 'with', 'within', 'without', 'work', 'year', 'yes', 'zone'
+    "absolute",
+    "action",
+    "add",
+    "after",
+    "all",
+    "allocate",
+    "alter",
+    "and",
+    "any",
+    "append",
+    "are",
+    "array",
+    "as",
+    "asc",
+    "asensitive",
+    "assertion",
+    "at",
+    "attribute",
+    "authid",
+    "authorization",
+    "before",
+    "begin",
+    "between",
+    "bigint",
+    "binary",
+    "bit",
+    "blob",
+    "blocked",
+    "bool",
+    "boolean",
+    "both",
+    "by",
+    "byte",
+    "call",
+    "called",
+    "cardinality",
+    "cascade",
+    "cascaded",
+    "case",
+    "casespecific",
+    "cast",
+    "catalog",
+    "chain",
+    "char",
+    "character",
+    "character_set_catalog",
+    "character_set_name",
+    "character_set_schema",
+    "characteristics",
+    "check",
+    "checked",
+    "clob",
+    "close",
+    "coalesce",
+    "collate",
+    "collation",
+    "collation_catalog",
+    "collation_name",
+    "collation_schema",
+    "column",
+    "commit",
+    "condition",
+    "connect_by_iscycle",
+    "connect_by_isleaf",
+    "connect_by_root",
+    "connection",
+    "constant",
+    "constraint",
+    "constraint_state_default",
+    "constraints",
+    "constructor",
+    "contains",
+    "continue",
+    "control",
+    "convert",
+    "corresponding",
+    "create",
+    "cs",
+    "csv",
+    "cube",
+    "current",
+    "current_date",
+    "current_path",
+    "current_role",
+    "current_schema",
+    "current_session",
+    "current_statement",
+    "current_time",
+    "current_timestamp",
+    "current_user",
+    "cursor",
+    "cycle",
+    "data",
+    "datalink",
+    "date",
+    "datetime_interval_code",
+    "datetime_interval_precision",
+    "day",
+    "dbtimezone",
+    "deallocate",
+    "dec",
+    "decimal",
+    "declare",
+    "default",
+    "default_like_escape_character",
+    "deferrable",
+    "deferred",
+    "defined",
+    "definer",
+    "delete",
+    "deref",
+    "derived",
+    "desc",
+    "describe",
+    "descriptor",
+    "deterministic",
+    "disable",
+    "disabled",
+    "disconnect",
+    "dispatch",
+    "distinct",
+    "dlurlcomplete",
+    "dlurlpath",
+    "dlurlpathonly",
+    "dlurlscheme",
+    "dlurlserver",
+    "dlvalue",
+    "do",
+    "domain",
+    "double",
+    "drop",
+    "dynamic",
+    "dynamic_function",
+    "dynamic_function_code",
+    "each",
+    "else",
+    "elseif",
+    "elsif",
+    "emits",
+    "enable",
+    "enabled",
+    "end",
+    "end-exec",
+    "enforce",
+    "equals",
+    "errors",
+    "escape",
+    "except",
+    "exception",
+    "exec",
+    "execute",
+    "exists",
+    "exit",
+    "export",
+    "external",
+    "extract",
+    "false",
+    "fbv",
+    "fetch",
+    "file",
+    "final",
+    "first",
+    "float",
+    "following",
+    "for",
+    "forall",
+    "force",
+    "format",
+    "found",
+    "free",
+    "from",
+    "fs",
+    "full",
+    "function",
+    "general",
+    "generated",
+    "geometry",
+    "get",
+    "global",
+    "go",
+    "goto",
+    "grant",
+    "granted",
+    "group",
+    "groups",
+    "group_concat",
+    "grouping",
+    "having",
+    "high",
+    "hold",
+    "hour",
+    "identity",
+    "if",
+    "ifnull",
+    "immediate",
+    "implementation",
+    "import",
+    "in",
+    "index",
+    "indicator",
+    "inner",
+    "inout",
+    "input",
+    "insensitive",
+    "insert",
+    "instance",
+    "instantiable",
+    "int",
+    "integer",
+    "integrity",
+    "intersect",
+    "interval",
+    "into",
+    "inverse",
+    "invoker",
+    "is",
+    "iterate",
+    "join",
+    "key_member",
+    "key_type",
+    "large",
+    "last",
+    "lateral",
+    "ldap",
+    "leading",
+    "leave",
+    "left",
+    "level",
+    "like",
+    "limit",
+    "listagg",
+    "local",
+    "localtime",
+    "localtimestamp",
+    "locator",
+    "log",
+    "longvarchar",
+    "loop",
+    "low",
+    "map",
+    "match",
+    "matched",
+    "merge",
+    "method",
+    "minus",
+    "minute",
+    "mod",
+    "modifies",
+    "modify",
+    "module",
+    "month",
+    "names",
+    "national",
+    "natural",
+    "nchar",
+    "nclob",
+    "new",
+    "next",
+    "nls_date_format",
+    "nls_date_language",
+    "nls_first_day_of_week",
+    "nls_numeric_characters",
+    "nls_timestamp_format",
+    "no",
+    "nocycle",
+    "nologging",
+    "none",
+    "not",
+    "null",
+    "nullif",
+    "number",
+    "numeric",
+    "nvarchar",
+    "nvarchar2",
+    "object",
+    "of",
+    "off",
+    "old",
+    "on",
+    "only",
+    "open",
+    "option",
+    "options",
+    "or",
+    "order",
+    "ordering",
+    "ordinality",
+    "others",
+    "out",
+    "outer",
+    "output",
+    "over",
+    "overlaps",
+    "overlay",
+    "overriding",
+    "pad",
+    "parallel_enable",
+    "parameter",
+    "parameter_specific_catalog",
+    "parameter_specific_name",
+    "parameter_specific_schema",
+    "partial",
+    "path",
+    "permission",
+    "placing",
+    "plus",
+    "position",
+    "preceding",
+    "preferring",
+    "prepare",
+    "preserve",
+    "prior",
+    "privileges",
+    "procedure",
+    "profile",
+    "random",
+    "range",
+    "read",
+    "reads",
+    "real",
+    "recovery",
+    "recursive",
+    "ref",
+    "references",
+    "referencing",
+    "refresh",
+    "regexp_like",
+    "relative",
+    "release",
+    "rename",
+    "repeat",
+    "replace",
+    "restore",
+    "restrict",
+    "result",
+    "return",
+    "returned_length",
+    "returned_octet_length",
+    "returns",
+    "revoke",
+    "right",
+    "rollback",
+    "rollup",
+    "routine",
+    "row",
+    "rows",
+    "rowtype",
+    "savepoint",
+    "schema",
+    "scope",
+    "script",
+    "scroll",
+    "search",
+    "second",
+    "section",
+    "security",
+    "select",
+    "selective",
+    "self",
+    "sensitive",
+    "separator",
+    "sequence",
+    "session",
+    "session_user",
+    "sessiontimezone",
+    "set",
+    "sets",
+    "shortint",
+    "similar",
+    "smallint",
+    "some",
+    "source",
+    "space",
+    "specific",
+    "specifictype",
+    "sql",
+    "sql_bigint",
+    "sql_bit",
+    "sql_char",
+    "sql_date",
+    "sql_decimal",
+    "sql_double",
+    "sql_float",
+    "sql_integer",
+    "sql_longvarchar",
+    "sql_numeric",
+    "sql_preprocessor_script",
+    "sql_real",
+    "sql_smallint",
+    "sql_timestamp",
+    "sql_tinyint",
+    "sql_type_date",
+    "sql_type_timestamp",
+    "sql_varchar",
+    "sqlexception",
+    "sqlstate",
+    "sqlwarning",
+    "start",
+    "state",
+    "statement",
+    "static",
+    "structure",
+    "style",
+    "substring",
+    "subtype",
+    "sysdate",
+    "system",
+    "system_user",
+    "systimestamp",
+    "table",
+    "temporary",
+    "text",
+    "then",
+    "time",
+    "timestamp",
+    "timezone_hour",
+    "timezone_minute",
+    "tinyint",
+    "to",
+    "trailing",
+    "transaction",
+    "transform",
+    "transforms",
+    "translation",
+    "treat",
+    "trigger",
+    "trim",
+    "true",
+    "truncate",
+    "under",
+    "union",
+    "unique",
+    "unknown",
+    "unlink",
+    "unnest",
+    "until",
+    "update",
+    "usage",
+    "user",
+    "using",
+    "value",
+    "values",
+    "varchar",
+    "varchar2",
+    "varray",
+    "verify",
+    "view",
+    "when",
+    "whenever",
+    "where",
+    "while",
+    "window",
+    "with",
+    "within",
+    "without",
+    "work",
+    "year",
+    "yes",
+    "zone",
 }
 
-colspecs = {
-}
+colspecs = {}
 
 ischema_names = {
-    'BOOLEAN': sqltypes.BOOLEAN,
-    'CHAR': sqltypes.CHAR,
-    'CLOB': sqltypes.TEXT,
-    'DATE': sqltypes.DATE,
-    'DECIMAL': sqltypes.DECIMAL,
-    'DOUBLE': sqltypes.FLOAT,  # EXASOL mapps DOUBLE, DOUBLE PRECISION, FLOAT to DOUBLE PRECISION
+    "BOOLEAN": sqltypes.BOOLEAN,
+    "CHAR": sqltypes.CHAR,
+    "CLOB": sqltypes.TEXT,
+    "DATE": sqltypes.DATE,
+    "DECIMAL": sqltypes.DECIMAL,
+    "DOUBLE": sqltypes.FLOAT,  # EXASOL mapps DOUBLE, DOUBLE PRECISION, FLOAT to DOUBLE PRECISION
     # internally but returns 'DOUBLE' as type when asking the DB catalog
     # INTERVAL DAY [(p)] TO SECOND [(fp)] TODO: missing support for EXA Datatype, check Oracle Engine
     # INTERVAL YEAR[(p)] TO MONTH         TODO: missing support for EXA Datatype, check Oracle Engine
-    'TIMESTAMP': sqltypes.TIMESTAMP,
-    'VARCHAR': sqltypes.VARCHAR,
+    "TIMESTAMP": sqltypes.TIMESTAMP,
+    "VARCHAR": sqltypes.VARCHAR,
 }
 
 
@@ -160,17 +551,18 @@ class EXACompiler(compiler.SQLCompiler):
     extract_map = util.update_copy(
         compiler.SQLCompiler.extract_map,
         {
-            'month': '%m',
-            'day': '%d',
-            'year': '%Y',
-            'second': '%S',
-            'hour': '%H',
-            'doy': '%j',
-            'minute': '%M',
-            'epoch': '%s',
-            'dow': '%w',
-            'week': '%W'
-        })
+            "month": "%m",
+            "day": "%d",
+            "year": "%Y",
+            "second": "%S",
+            "hour": "%H",
+            "doy": "%j",
+            "minute": "%M",
+            "epoch": "%s",
+            "dow": "%w",
+            "week": "%W",
+        },
+    )
 
     def visit_now_func(self, fn, **kw):
         return "CURRENT_TIMESTAMP"
@@ -180,17 +572,31 @@ class EXACompiler(compiler.SQLCompiler):
 
     def limit_clause(self, select, **kw):
         text = ""
-        if select._limit is not None:
-            text += "\n LIMIT %d" % int(select._limit)
-        if select._offset is not None:
-            text += "\n OFFSET %d" % int(select._offset)
+
+        if select._limit_clause is not None:
+            limit_clause = select._limit_clause
+            if select._simple_int_clause(limit_clause):
+                limit_clause = str(limit_clause._limit_offset_value)
+            else:
+                limit_clause = self.process(limit_clause, **kw)
+            text += "\n LIMIT " + limit_clause
+
+            if select._offset_clause is not None:
+
+                offset_clause = select._offset_clause
+
+                if select._simple_int_clause(offset_clause):
+                    offset_clause = str(offset_clause._limit_offset_value)
+                else:
+                    offset_clause = self.process(offset_clause, **kw)
+                text += "\n OFFSET " + offset_clause
 
         return text
 
     def for_update_clause(self, select):
         # Exasol has no "FOR UPDATE"
         util.warn("EXASolution does not support SELECT ... FOR UPDATE")
-        return ''
+        return ""
 
     def default_from(self):
         """Called when a ``SELECT`` statement has no froms,
@@ -203,19 +609,16 @@ class EXACompiler(compiler.SQLCompiler):
 
 
 class EXADDLCompiler(compiler.DDLCompiler):
-
     def get_column_specification(self, column, **kwargs):
         colspec = self.preparer.format_column(column)
         colspec += " " + self.dialect.type_compiler.process(column.type)
-        if column is column.table._autoincrement_column and \
-                True and \
-                (
-                        column.default is None or \
-                        isinstance(column.default, schema.Sequence)
-                ):
+        if (
+            column is column.table._autoincrement_column
+            and True
+            and (column.default is None or isinstance(column.default, schema.Sequence))
+        ):
             colspec += " IDENTITY"
-            if isinstance(column.default, schema.Sequence) and \
-                    column.default.start > 0:
+            if isinstance(column.default, schema.Sequence) and column.default.start > 0:
                 colspec += " " + str(column.default.start)
         else:
             default = self.get_column_default_string(column)
@@ -233,7 +636,9 @@ class EXADDLCompiler(compiler.DDLCompiler):
         # TODO: FKs that reference other tables could be inlined
         # the create rule could be more specific but for now, ALTER
         # TABLE for all FKs work.
-        for c in [c for c in table._sorted_constraints if isinstance(c, ForeignKeyConstraint)]:
+        for c in [
+            c for c in table._sorted_constraints if isinstance(c, ForeignKeyConstraint)
+        ]:
             c._create_rule = lambda: False
             event.listen(table, "after_create", AddConstraint(c))
         return super(EXADDLCompiler, self).create_table_constraints(table)
@@ -242,7 +647,7 @@ class EXADDLCompiler(compiler.DDLCompiler):
         if isinstance(create.element, DistributeByConstraint):
             return "ALTER TABLE %s %s" % (
                 self.preparer.format_table(create.element.table),
-                self.process(create.element)
+                self.process(create.element),
             )
         else:
             return super(EXADDLCompiler, self).visit_add_constraint(create)
@@ -250,7 +655,8 @@ class EXADDLCompiler(compiler.DDLCompiler):
     def visit_drop_constraint(self, drop):
         if isinstance(drop.element, DistributeByConstraint):
             return "ALTER TABLE %s DROP DISTRIBUTION KEYS" % (
-                self.preparer.format_table(drop.element.table))
+                self.preparer.format_table(drop.element.table)
+            )
         else:
             return super(EXADDLCompiler, self).visit_drop_constraint(drop)
 
@@ -271,7 +677,7 @@ class EXADDLCompiler(compiler.DDLCompiler):
 
 
 class EXATypeCompiler(compiler.GenericTypeCompiler):
-    """ force mapping of BIGINT to DECIMAL(19)
+    """force mapping of BIGINT to DECIMAL(19)
     The mapping back is done by the driver using flag
     INTTYPESINRESULTSIFPOSSIBLE=Y. This is enforced by default by this
     dialect. However, BIGINT is mapped to DECIMAL(36) and the driver only
@@ -291,29 +697,28 @@ class EXATypeCompiler(compiler.GenericTypeCompiler):
 
 class EXAIdentifierPreparer(compiler.IdentifierPreparer):
     reserved_words = RESERVED_WORDS
-    illegal_initial_characters = compiler.ILLEGAL_INITIAL_CHARACTERS.union('_')
+    illegal_initial_characters = compiler.ILLEGAL_INITIAL_CHARACTERS.union("_")
 
 
 class EXAExecutionContext(default.DefaultExecutionContext):
-
     def fire_sequence(self, default, type_):
         raise NotImplemented
 
     def get_insert_default(self, column):
         if column.default.is_sequence:
-            return 'DEFAULT'
+            return "DEFAULT"
         else:
             return super(EXAExecutionContext, self).get_insert_default(column)
 
     def get_lastrowid(self):
         columns = self.compiled.sql_compiler.statement.table.columns
-        autoinc_pk_columns = \
-            [c.name for c in columns if c.autoincrement and c.primary_key]
+        autoinc_pk_columns = [
+            c.name for c in columns if c.autoincrement and c.primary_key
+        ]
         if len(autoinc_pk_columns) == 0:
             return None
         elif len(autoinc_pk_columns) > 1:
-            util.warn("Table with more than one autoincrement, primary key" \
-                      " Column!")
+            util.warn("Table with more than one autoincrement, primary key" " Column!")
             raise Exception
         else:
             id_col = self.dialect.denormalize_name(autoinc_pk_columns[0])
@@ -321,9 +726,11 @@ class EXAExecutionContext(default.DefaultExecutionContext):
             table = self.compiled.sql_compiler.statement.table.name
             table = self.dialect.denormalize_name(table)
 
-            sql_stmnt = "SELECT column_identity from SYS.EXA_ALL_COLUMNS " \
-                        "WHERE column_object_type = 'TABLE' and column_table " \
-                        "= ? AND column_name = ?"
+            sql_stmnt = (
+                "SELECT column_identity from SYS.EXA_ALL_COLUMNS "
+                "WHERE column_object_type = 'TABLE' and column_table "
+                "= ? AND column_name = ?"
+            )
 
             schema = self.compiled.sql_compiler.statement.table.schema
             if schema is not None:
@@ -346,34 +753,46 @@ class EXAExecutionContext(default.DefaultExecutionContext):
         Note: Parameter replacement is done for server versions < 4.1.8 or
               in case a delete query is executed.
         """
-        if self.isdelete or self.root_connection.dialect.server_version_info < (4, 1, 8):
+        if self.isdelete or self.root_connection.dialect.server_version_info < (
+            4,
+            1,
+            8,
+        ):
             db_query = self.unicode_statement
             for i in range(1, len(self.parameters)):
-                db_query += ", (" + ", ".join(['?'] * len(self.parameters[i])) + ")"
+                db_query += ", (" + ", ".join(["?"] * len(self.parameters[i])) + ")"
             for db_para in self.parameters:
                 for value in db_para:
-                    ident = '?'
+                    ident = "?"
                     if value is None:
-                        db_query = db_query.replace(ident, 'NULL', 1)
+                        db_query = db_query.replace(ident, "NULL", 1)
                     elif isinstance(value, six.integer_types):
                         db_query = db_query.replace(ident, str(value), 1)
                     elif isinstance(value, (float, Decimal)):
                         db_query = db_query.replace(ident, str(float(value)), 1)
                     elif isinstance(value, bool):
-                        db_query = db_query.replace(ident, '1' if value else '0', 1)
+                        db_query = db_query.replace(ident, "1" if value else "0", 1)
                     elif isinstance(value, datetime):
-                        db_query = db_query.replace(ident,
-                                                    "to_timestamp('%s', 'YYYY-MM-DD HH24:MI:SS.FF6')" % value.strftime(
-                                                        '%Y-%m-%d %H:%M:%S.%f'), 1)
+                        db_query = db_query.replace(
+                            ident,
+                            "to_timestamp('%s', 'YYYY-MM-DD HH24:MI:SS.FF6')"
+                            % value.strftime("%Y-%m-%d %H:%M:%S.%f"),
+                            1,
+                        )
                     elif isinstance(value, date):
-                        db_query = db_query.replace(ident, "to_date('%s', 'YYYY-MM-DD')" % value.strftime('%Y-%m-%d'),
-                                                    1)
+                        db_query = db_query.replace(
+                            ident,
+                            "to_date('%s', 'YYYY-MM-DD')" % value.strftime("%Y-%m-%d"),
+                            1,
+                        )
                     elif isinstance(value, six.binary_type):
-                        db_query = db_query.replace(ident, "'%s'" % value.decode('UTF-8'), 1)
+                        db_query = db_query.replace(
+                            ident, "'%s'" % value.decode("UTF-8"), 1
+                        )
                     elif isinstance(value, six.text_type):
                         db_query = db_query.replace(ident, "'%s'" % value, 1)
                     else:
-                        raise TypeError('Data type not supported: %s' % type(value))
+                        raise TypeError("Data type not supported: %s" % type(value))
             self.statement = db_query
             self.parameters = [[]]
 
@@ -382,7 +801,7 @@ class EXAExecutionContext(default.DefaultExecutionContext):
 
 
 class EXADialect(default.DefaultDialect):
-    name = 'exasol'
+    name = "exasol"
     supports_native_boolean = True
     supports_native_decimal = True
     supports_alter = True
@@ -399,7 +818,7 @@ class EXADialect(default.DefaultDialect):
     requires_name_normalize = True
     cte_follows_insert = True
 
-    default_paramstyle = 'qmark'
+    default_paramstyle = "qmark"
     execution_ctx_cls = EXAExecutionContext
     statement_compiler = EXACompiler
     ddl_compiler = EXADDLCompiler
@@ -413,9 +832,7 @@ class EXADialect(default.DefaultDialect):
         default.DefaultDialect.__init__(self, **kwargs)
         self.isolation_level = isolation_level
 
-    _isolation_lookup = {
-        'SERIALIZABLE': 0
-    }
+    _isolation_lookup = {"SERIALIZABLE": 0}
 
     def _get_default_schema_name(self, connection):
         """
@@ -431,7 +848,8 @@ class EXADialect(default.DefaultDialect):
     def _get_schema_from_url(self, connection, schema):
         if connection.engine.url is not None and connection.engine.url != "":
             schema = self.normalize_name(
-                connection.engine.url.translate_connect_args().get('database'))
+                connection.engine.url.translate_connect_args().get("database")
+            )
         return schema
 
     def normalize_name(self, name):
@@ -446,8 +864,9 @@ class EXADialect(default.DefaultDialect):
             if isinstance(name, str):
                 name = name.decode(self.encoding)
 
-        if name.upper() == name and \
-                not self.identifier_preparer._requires_quotes(name.lower()):
+        if name.upper() == name and not self.identifier_preparer._requires_quotes(
+            name.lower()
+        ):
             return name.lower()
         elif name.lower() == name:
             return quoted_name(name, quote=True)
@@ -461,8 +880,9 @@ class EXADialect(default.DefaultDialect):
         """
         if name is None or len(name) == 0:
             return None
-        elif name.lower() == name and \
-                not self.identifier_preparer._requires_quotes(name.lower()):
+        elif name.lower() == name and not self.identifier_preparer._requires_quotes(
+            name.lower()
+        ):
             name = name.upper()
 
         if six.PY2:
@@ -519,7 +939,9 @@ class EXADialect(default.DefaultDialect):
         return self.denormalize_name(schema)
 
     def _get_schema_for_input(self, connection, schema):
-        schema = self.denormalize_name(schema or self._get_schema_from_url(connection, schema))
+        schema = self.denormalize_name(
+            schema or self._get_schema_from_url(connection, schema)
+        )
         return schema
 
     def _get_current_schema(self, connection):
@@ -528,10 +950,20 @@ class EXADialect(default.DefaultDialect):
         return current_schema
 
     @reflection.cache
-    def _get_tables_for_schema_odbc(self, connection, odbc_connection, schema, table_type=None, table_name=None, **kw):
+    def _get_tables_for_schema_odbc(
+        self,
+        connection,
+        odbc_connection,
+        schema,
+        table_type=None,
+        table_name=None,
+        **kw
+    ):
         schema = self._get_schema_for_input_or_current(connection, schema)
         table_name = self.denormalize_name(table_name)
-        with odbc_connection.cursor().tables(schema=schema, tableType=table_type, table=table_name) as table_cursor:
+        with odbc_connection.cursor().tables(
+            schema=schema, tableType=table_type, table=table_name
+        ) as table_cursor:
             rows = [row for row in table_cursor]
             return rows
 
@@ -545,9 +977,10 @@ class EXADialect(default.DefaultDialect):
 
     @reflection.cache
     def get_table_names_odbc(self, connection, odbc_connection, schema, **kw):
-        tables = self._get_tables_for_schema_odbc(connection, odbc_connection, schema, table_type="TABLE", **kw)
-        normalized_tables = [self.normalize_name(row.table_name)
-                             for row in tables]
+        tables = self._get_tables_for_schema_odbc(
+            connection, odbc_connection, schema, table_type="TABLE", **kw
+        )
+        normalized_tables = [self.normalize_name(row.table_name) for row in tables]
         return normalized_tables
 
     @reflection.cache
@@ -559,39 +992,53 @@ class EXADialect(default.DefaultDialect):
             rs = connection.execute(sql_stmnt)
         else:
             sql_stmnt += ":schema ORDER BY table_name"
-            rs = connection.execute(sql.text(sql_stmnt),
-                                    schema=self.denormalize_name(schema))
+            rs = connection.execute(
+                sql.text(sql_stmnt), schema=self.denormalize_name(schema)
+            )
         tables = [self.normalize_name(row[0]) for row in rs]
         return tables
 
     def has_table(self, connection, table_name, schema=None, **kw):
         odbc_connection = self.getODBCConnection(connection)
         if odbc_connection is not None and not self.use_sql_fallback(**kw):
-            result=self.has_table_odbc(connection, odbc_connection, schema=schema, table_name=table_name, **kw)
+            result = self.has_table_odbc(
+                connection, odbc_connection, schema=schema, table_name=table_name, **kw
+            )
         else:
-            result=self.has_table_sql(connection, schema=schema, table_name=table_name, **kw) 
+            result = self.has_table_sql(
+                connection, schema=schema, table_name=table_name, **kw
+            )
         return result
 
-    def has_table_odbc(self, connection, odbc_connection, table_name, schema=None, **kw):
-        tables = self.get_table_names_odbc(connection=connection,
-                                           odbc_connection=odbc_connection,
-                                           schema=schema, table_name=table_name, **kw)
+    def has_table_odbc(
+        self, connection, odbc_connection, table_name, schema=None, **kw
+    ):
+        tables = self.get_table_names_odbc(
+            connection=connection,
+            odbc_connection=odbc_connection,
+            schema=schema,
+            table_name=table_name,
+            **kw
+        )
         result = self.normalize_name(table_name) in tables
         return result
 
     def has_table_sql(self, connection, table_name, schema=None, **kw):
         schema = self._get_schema_for_input(connection, schema)
-        sql_stmnt = "SELECT table_name from SYS.EXA_ALL_TABLES " \
-                    "WHERE table_name = :table_name "
+        sql_stmnt = (
+            "SELECT table_name from SYS.EXA_ALL_TABLES "
+            "WHERE table_name = :table_name "
+        )
         if schema is not None:
             sql_stmnt += "AND table_schema = :schema"
         rp = connection.execute(
             sql.text(sql_stmnt),
             table_name=self.denormalize_name(table_name),
-            schema=self.denormalize_name(schema))
+            schema=self.denormalize_name(schema),
+        )
         row = rp.fetchone()
 
-        return (row is not None)
+        return row is not None
 
     @reflection.cache
     def get_view_names(self, connection, schema=None, **kw):
@@ -603,9 +1050,10 @@ class EXADialect(default.DefaultDialect):
 
     @reflection.cache
     def get_view_names_odbc(self, connection, odbc_connection, schema=None, **kw):
-        tables = self._get_tables_for_schema_odbc(connection, odbc_connection, schema, table_type="VIEW", **kw)
-        return [self.normalize_name(row.table_name)
-                for row in tables]
+        tables = self._get_tables_for_schema_odbc(
+            connection, odbc_connection, schema, table_type="VIEW", **kw
+        )
+        return [self.normalize_name(row.table_name) for row in tables]
 
     def get_view_names_sql(self, connection, schema=None, **kw):
         schema = self._get_schema_for_input(connection, schema)
@@ -615,15 +1063,18 @@ class EXADialect(default.DefaultDialect):
             rs = connection.execute(sql.text(sql_stmnt))
         else:
             sql_stmnt += ":schema ORDER BY view_name"
-            rs = connection.execute(sql.text(sql_stmnt),
-                                    schema=self.denormalize_name(schema))
+            rs = connection.execute(
+                sql.text(sql_stmnt), schema=self.denormalize_name(schema)
+            )
         return [self.normalize_name(row[0]) for row in rs]
 
     @reflection.cache
     def get_view_definition(self, connection, view_name, schema=None, **kw):
         odbc_connection = self.getODBCConnection(connection)
         if odbc_connection is not None and not self.use_sql_fallback(**kw):
-            return self.get_view_definition_odbc(connection, odbc_connection, view_name, schema, **kw)
+            return self.get_view_definition_odbc(
+                connection, odbc_connection, view_name, schema, **kw
+            )
         else:
             return self.get_view_definition_sql(connection, view_name, schema, **kw)
 
@@ -631,17 +1082,25 @@ class EXADialect(default.DefaultDialect):
         return "'%s'" % (string_value.replace("'", "''"))
 
     @reflection.cache
-    def get_view_definition_odbc(self, connection, odbc_connection, view_name, schema=None, **kw):
+    def get_view_definition_odbc(
+        self, connection, odbc_connection, view_name, schema=None, **kw
+    ):
         if view_name is None:
             return None
-        tables = self._get_tables_for_schema_odbc(connection, odbc_connection, schema, table_type="VIEW",
-                                                  table_name=view_name, **kw)
+        tables = self._get_tables_for_schema_odbc(
+            connection,
+            odbc_connection,
+            schema,
+            table_type="VIEW",
+            table_name=view_name,
+            **kw
+        )
         if len(tables) == 1:
             quoted_view_name_string = self.quote_string_value(tables[0][2])
             quoted_view_schema_string = self.quote_string_value(tables[0][1])
-            sql_stmnt = \
-                "/*snapshot execution*/ SELECT view_text FROM sys.exa_all_views WHERE view_name = {view_name} AND view_schema = {view_schema}".format(
-                    view_name=quoted_view_name_string, view_schema=quoted_view_schema_string)
+            sql_stmnt = "/*snapshot execution*/ SELECT view_text FROM sys.exa_all_views WHERE view_name = {view_name} AND view_schema = {view_schema}".format(
+                view_name=quoted_view_name_string, view_schema=quoted_view_schema_string
+            )
             rp = connection.execute(sql.text(sql_stmnt)).scalar()
             if rp:
                 if six.PY3:
@@ -660,9 +1119,11 @@ class EXADialect(default.DefaultDialect):
             sql_stmnt += "CURRENT_SCHEMA"
         else:
             sql_stmnt += ":schema"
-        rp = connection.execute(sql.text(sql_stmnt),
-                                view_name=self.denormalize_name(view_name),
-                                schema=self.denormalize_name(schema)).scalar()
+        rp = connection.execute(
+            sql.text(sql_stmnt),
+            view_name=self.denormalize_name(view_name),
+            schema=self.denormalize_name(schema),
+        ).scalar()
         if rp:
             if six.PY3:
                 return rp
@@ -672,28 +1133,31 @@ class EXADialect(default.DefaultDialect):
             return None
 
     def get_column_sql_query_str(self):
-        return "SELECT " \
-               "column_name, " \
-               "column_type, " \
-               "column_maxsize, " \
-               "column_num_prec, " \
-               "column_num_scale, " \
-               "column_is_nullable, " \
-               "column_default, " \
-               "column_identity, " \
-               "column_is_distribution_key, " \
-               "column_table " \
-               "FROM sys.exa_all_columns " \
-               "WHERE " \
-               "column_object_type IN ('TABLE', 'VIEW') AND " \
-               "column_schema = {schema} AND " \
-               "column_table = {table} " \
-               "ORDER BY column_ordinal_position"
+        return (
+            "SELECT "
+            "column_name, "
+            "column_type, "
+            "column_maxsize, "
+            "column_num_prec, "
+            "column_num_scale, "
+            "column_is_nullable, "
+            "column_default, "
+            "column_identity, "
+            "column_is_distribution_key, "
+            "column_table "
+            "FROM sys.exa_all_columns "
+            "WHERE "
+            "column_object_type IN ('TABLE', 'VIEW') AND "
+            "column_schema = {schema} AND "
+            "column_table = {table} "
+            "ORDER BY column_ordinal_position"
+        )
 
     @reflection.cache
     def _get_columns_odbc(self, connection, odbc_connection, table_name, schema, **kw):
-        tables = self._get_tables_for_schema_odbc(connection, odbc_connection,
-                                                  schema=schema, table_name=table_name, **kw)
+        tables = self._get_tables_for_schema_odbc(
+            connection, odbc_connection, schema=schema, table_name=table_name, **kw
+        )
         if len(tables) == 1:
             # get_columns_sql originally returned all columns of all tables if table_name is None,
             # we follow this behavior here for compatibility. However, the documentation for Dialects
@@ -701,10 +1165,12 @@ class EXADialect(default.DefaultDialect):
             # https://docs.sqlalchemy.org/en/13/core/internals.html#sqlalchemy.engine.interfaces.Dialect
             quoted_schema_string = self.quote_string_value(tables[0].table_schem)
             quoted_table_string = self.quote_string_value(tables[0].table_name)
-            sql_stmnt = \
-                "/*snapshot execution*/ " + \
-                self.get_column_sql_query_str() \
-                    .format(schema=quoted_schema_string, table=quoted_table_string)
+            sql_stmnt = (
+                "/*snapshot execution*/ "
+                + self.get_column_sql_query_str().format(
+                    schema=quoted_schema_string, table=quoted_table_string
+                )
+            )
             rp = connection.execute(sql.text(sql_stmnt))
             return list(rp)
         else:
@@ -718,13 +1184,15 @@ class EXADialect(default.DefaultDialect):
         else:
             schema_str = ":schema"
         table_name_str = ":table"
-        sql_stmnt = \
-            self.get_column_sql_query_str() \
-                .format(schema=schema_str, table=table_name_str)
+        sql_stmnt = self.get_column_sql_query_str().format(
+            schema=schema_str, table=table_name_str
+        )
         stmnt = sql.text(sql_stmnt)
-        rp = connection.execute(stmnt, 
-                schema=self.denormalize_name(schema),
-                table=self.denormalize_name(table_name))
+        rp = connection.execute(
+            stmnt,
+            schema=self.denormalize_name(schema),
+            table=self.denormalize_name(table_name),
+        )
 
         return list(rp)
 
@@ -732,7 +1200,9 @@ class EXADialect(default.DefaultDialect):
     def _get_columns(self, connection, table_name, schema=None, **kw):
         odbc_connection = self.getODBCConnection(connection)
         if odbc_connection is not None and not self.use_sql_fallback(**kw):
-            columns = self._get_columns_odbc(connection, odbc_connection, table_name, schema, **kw)
+            columns = self._get_columns_odbc(
+                connection, odbc_connection, table_name, schema, **kw
+            )
         else:
             columns = self._get_columns_sql(connection, table_name, schema, **kw)
         return columns
@@ -743,26 +1213,33 @@ class EXADialect(default.DefaultDialect):
             return []
 
         columns = []
-        rows = self._get_columns(connection,
-                                 table_name=table_name,
-                                 schema=schema, **kw)
+        rows = self._get_columns(connection, table_name=table_name, schema=schema, **kw)
         table_name = self.denormalize_name(table_name)
         for row in rows:
-            (colname, coltype, length, precision, scale, nullable, default, identity, is_distribution_key) = \
-                (row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8])
+            (
+                colname,
+                coltype,
+                length,
+                precision,
+                scale,
+                nullable,
+                default,
+                identity,
+                is_distribution_key,
+            ) = (row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8])
 
             # FIXME: Missing type support: INTERVAL DAY [(p)] TO SECOND [(fp)], INTERVAL YEAR[(p)] TO MONTH
 
             # remove ASCII, UTF8 and spaces from char-like types
-            coltype = re.sub(r'ASCII|UTF8| ', '', coltype)
+            coltype = re.sub(r"ASCII|UTF8| ", "", coltype)
             # remove precision and scale addition from numeric types
-            coltype = re.sub(r'\(\d+(\,\d+)?\)', '', coltype)
+            coltype = re.sub(r"\(\d+(\,\d+)?\)", "", coltype)
             try:
-                if coltype == 'VARCHAR':
+                if coltype == "VARCHAR":
                     coltype = sqltypes.VARCHAR(length)
-                elif coltype == 'CHAR':
+                elif coltype == "CHAR":
                     coltype = sqltypes.CHAR(length)
-                elif coltype == 'DECIMAL':
+                elif coltype == "DECIMAL":
                     # this Dialect forces INTTYPESINRESULTSIFPOSSIBLE=y on ODBC level
                     # thus, we need to convert DECIMAL(<=18,0) back to INTEGER type
                     # and DECIMAL(36,0) back to BIGINT type
@@ -775,22 +1252,23 @@ class EXADialect(default.DefaultDialect):
                 else:
                     coltype = self.ischema_names[coltype]
             except KeyError:
-                util.warn("Did not recognize type '%s' of column '%s'" %
-                          (coltype, colname))
+                util.warn(
+                    "Did not recognize type '%s' of column '%s'" % (coltype, colname)
+                )
                 coltype = sqltypes.NULLTYPE
 
             cdict = {
-                'name': self.normalize_name(colname),
-                'type': coltype,
-                'nullable': nullable,
-                'default': default,
-                'is_distribution_key': is_distribution_key
+                "name": self.normalize_name(colname),
+                "type": coltype,
+                "nullable": nullable,
+                "default": default,
+                "is_distribution_key": is_distribution_key,
             }
             if identity:
                 identity = int(identity)
             # if we have a positive identity value add a sequence
             if identity is not None and identity >= 0:
-                cdict['sequence'] = {'name': ''}
+                cdict["sequence"] = {"name": ""}
                 # TODO: we have to possibility to encode the current identity value count
                 # into the column metadata. But the consequence is that it would also be used
                 # as start value in CREATE statements. For now the current value is ignored.
@@ -799,29 +1277,35 @@ class EXADialect(default.DefaultDialect):
         return columns
 
     def _get_constraint_sql_str(self, schema, table_name, contraint_type):
-        sql_stmnt = \
-            "SELECT " \
-            "constraint_name, " \
-            "column_name, " \
-            "referenced_schema, " \
-            "referenced_table, " \
-            "referenced_column, " \
-            "constraint_table, " \
-            "constraint_type " \
-            "FROM SYS.EXA_ALL_CONSTRAINT_COLUMNS " \
-            "WHERE " \
-            "constraint_schema={schema} AND " \
-            "constraint_table={table_name} AND " \
-            "constraint_type='{contraint_type}' " \
-            "ORDER BY ordinal_position" \
-                .format(schema=schema, table_name=table_name, contraint_type=contraint_type)
+        sql_stmnt = (
+            "SELECT "
+            "constraint_name, "
+            "column_name, "
+            "referenced_schema, "
+            "referenced_table, "
+            "referenced_column, "
+            "constraint_table, "
+            "constraint_type "
+            "FROM SYS.EXA_ALL_CONSTRAINT_COLUMNS "
+            "WHERE "
+            "constraint_schema={schema} AND "
+            "constraint_table={table_name} AND "
+            "constraint_type='{contraint_type}' "
+            "ORDER BY ordinal_position".format(
+                schema=schema, table_name=table_name, contraint_type=contraint_type
+            )
+        )
         return sql_stmnt
 
     @reflection.cache
-    def get_pk_constraint_odbc(self, connection, odbc_connection, table_name, schema=None, **kw):
+    def get_pk_constraint_odbc(
+        self, connection, odbc_connection, table_name, schema=None, **kw
+    ):
         schema = self._get_schema_for_input_or_current(connection, schema)
         table_name = self.denormalize_name(table_name)
-        with odbc_connection.cursor().primaryKeys(table=table_name, schema=schema) as primaryKeys_cursor:
+        with odbc_connection.cursor().primaryKeys(
+            table=table_name, schema=schema
+        ) as primaryKeys_cursor:
             pkeys = []
             constraint_name = None
             for row in primaryKeys_cursor:
@@ -829,7 +1313,7 @@ class EXADialect(default.DefaultDialect):
                     continue
                 pkeys.append(self.normalize_name(row[3]))
                 constraint_name = self.normalize_name(row[5])
-        return {'constrained_columns': pkeys, 'name': constraint_name}
+        return {"constrained_columns": pkeys, "name": constraint_name}
 
     @reflection.cache
     def get_pk_constraint_sql(self, connection, table_name, schema=None, **kw):
@@ -840,19 +1324,22 @@ class EXADialect(default.DefaultDialect):
             schema_string = "CURRENT_SCHEMA "
         else:
             schema_string = ":schema "
-        sql_stmnt=self._get_constraint_sql_str(schema_string, table_name_string, "PRIMARY KEY")
-        rp = connection.execute(sql.text(sql_stmnt),
-                                schema=self.denormalize_name(schema),
-                                table=table_name)
+        sql_stmnt = self._get_constraint_sql_str(
+            schema_string, table_name_string, "PRIMARY KEY"
+        )
+        rp = connection.execute(
+            sql.text(sql_stmnt), schema=self.denormalize_name(schema), table=table_name
+        )
         pkeys = []
         constraint_name = None
         for row in list(rp):
-            if (row[5] != table_name and table_name is not None) or row[6] != 'PRIMARY KEY':
+            if (row[5] != table_name and table_name is not None) or row[
+                6
+            ] != "PRIMARY KEY":
                 continue
             pkeys.append(self.normalize_name(row[1]))
             constraint_name = self.normalize_name(row[0])
-        return {'constrained_columns': pkeys, 'name': constraint_name}
-
+        return {"constrained_columns": pkeys, "name": constraint_name}
 
     @reflection.cache
     def get_pk_constraint(self, connection, table_name, schema=None, **kw):
@@ -860,21 +1347,33 @@ class EXADialect(default.DefaultDialect):
             return None
         odbc_connection = self.getODBCConnection(connection)
         if odbc_connection is not None and not self.use_sql_fallback(**kw):
-            return self.get_pk_constraint_odbc(connection, odbc_connection, table_name=table_name, schema=schema, **kw)
+            return self.get_pk_constraint_odbc(
+                connection, odbc_connection, table_name=table_name, schema=schema, **kw
+            )
         else:
-            return self.get_pk_constraint_sql(connection, table_name=table_name, schema=schema, **kw)
+            return self.get_pk_constraint_sql(
+                connection, table_name=table_name, schema=schema, **kw
+            )
 
     @reflection.cache
-    def _get_foreign_keys_odbc(self, connection, odbc_connection, table_name, schema=None, **kw):
+    def _get_foreign_keys_odbc(
+        self, connection, odbc_connection, table_name, schema=None, **kw
+    ):
         # Need to use a workaround, because SQLForeignKeys functions doesn't work for an unknown reason
-        tables = self._get_tables_for_schema_odbc(connection=connection, odbc_connection=odbc_connection,
-                                                  schema=schema, table_name=table_name, table_type="TABLE", **kw)
+        tables = self._get_tables_for_schema_odbc(
+            connection=connection,
+            odbc_connection=odbc_connection,
+            schema=schema,
+            table_name=table_name,
+            table_type="TABLE",
+            **kw
+        )
         if len(tables) > 0:
             quoted_schema_string = self.quote_string_value(tables[0].table_schem)
             quoted_table_string = self.quote_string_value(tables[0].table_name)
-            sql_stmnt = \
-                "/*snapshot execution*/ " + \
-                self._get_constraint_sql_str(quoted_schema_string,quoted_table_string,"FOREIGN KEY")
+            sql_stmnt = "/*snapshot execution*/ " + self._get_constraint_sql_str(
+                quoted_schema_string, quoted_table_string, "FOREIGN KEY"
+            )
             rp = connection.execute(sql.text(sql_stmnt))
             return list(rp)
         else:
@@ -887,11 +1386,14 @@ class EXADialect(default.DefaultDialect):
             schema_string = "CURRENT_SCHEMA "
         else:
             schema_string = ":schema "
-        sql_stmnt = \
-            self._get_constraint_sql_str(schema_string, table_name_string, "FOREIGN KEY")
-        rp = connection.execute(sql.text(sql_stmnt),
-                                schema=self.denormalize_name(schema),
-                                table=self.denormalize_name(table_name))
+        sql_stmnt = self._get_constraint_sql_str(
+            schema_string, table_name_string, "FOREIGN KEY"
+        )
+        rp = connection.execute(
+            sql.text(sql_stmnt),
+            schema=self.denormalize_name(schema),
+            table=self.denormalize_name(table_name),
+        )
         return list(rp)
 
     @reflection.cache
@@ -902,36 +1404,53 @@ class EXADialect(default.DefaultDialect):
 
         def fkey_rec():
             return {
-                'name': None,
-                'constrained_columns': [],
-                'referred_schema': None,
-                'referred_table': None,
-                'referred_columns': []
+                "name": None,
+                "constrained_columns": [],
+                "referred_schema": None,
+                "referred_table": None,
+                "referred_columns": [],
             }
 
         fkeys = util.defaultdict(fkey_rec)
         odbc_connection = self.getODBCConnection(connection)
         if odbc_connection is not None and not self.use_sql_fallback(**kw):
-            constraints = self._get_foreign_keys_odbc(connection, odbc_connection, table_name=table_name,
-                                                      schema=schema_int, **kw)
+            constraints = self._get_foreign_keys_odbc(
+                connection,
+                odbc_connection,
+                table_name=table_name,
+                schema=schema_int,
+                **kw
+            )
         else:
-            constraints = self._get_foreign_keys_sql(connection, table_name=table_name, schema=schema_int, **kw)
+            constraints = self._get_foreign_keys_sql(
+                connection, table_name=table_name, schema=schema_int, **kw
+            )
         table_name = self.denormalize_name(table_name)
         for row in constraints:
-            (cons_name, local_column, remote_schema, remote_table, remote_column) = \
-                (row[0], row[1], row[2], row[3], row[4])
+            (cons_name, local_column, remote_schema, remote_table, remote_column) = (
+                row[0],
+                row[1],
+                row[2],
+                row[3],
+                row[4],
+            )
             rec = fkeys[self.normalize_name(cons_name)]
-            rec['name'] = self.normalize_name(cons_name)
-            local_cols, remote_cols = rec['constrained_columns'], rec['referred_columns']
+            rec["name"] = self.normalize_name(cons_name)
+            local_cols, remote_cols = (
+                rec["constrained_columns"],
+                rec["referred_columns"],
+            )
 
-            if not rec['referred_table']:
-                rec['referred_table'] = self.normalize_name(remote_table)
+            if not rec["referred_table"]:
+                rec["referred_table"] = self.normalize_name(remote_table)
                 # we need to take care of calls without schema. the sqla test suite
                 # expects referred_schema to be None if None is passed in to this function
-                if schema is None and self.normalize_name(schema_int) == self.normalize_name(remote_schema):
-                    rec['referred_schema'] = None
+                if schema is None and self.normalize_name(
+                    schema_int
+                ) == self.normalize_name(remote_schema):
+                    rec["referred_schema"] = None
                 else:
-                    rec['referred_schema'] = self.normalize_name(remote_schema)
+                    rec["referred_schema"] = self.normalize_name(remote_schema)
 
             local_cols.append(self.normalize_name(local_column))
             remote_cols.append(self.normalize_name(remote_column))

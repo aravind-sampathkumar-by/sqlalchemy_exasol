@@ -10,8 +10,11 @@ import sqlalchemy.testing as testing
 from sqlalchemy_exasol.base import EXADialect
 
 
-#TODO get_schema_names, get_view_names and get_view_definition didn't cause deadlocks in this scenario
-@pytest.mark.skipif("turbodbc" in str(testing.db.url), reason="We currently don't support snapshot metadata requests for turbodbc")
+# TODO get_schema_names, get_view_names and get_view_definition didn't cause deadlocks in this scenario
+@pytest.mark.skipif(
+    "turbodbc" in str(testing.db.url),
+    reason="We currently don't support snapshot metadata requests for turbodbc",
+)
 class MetadataTest(fixtures.TablesTest):
     __backend__ = True
 
@@ -19,7 +22,9 @@ class MetadataTest(fixtures.TablesTest):
     WATCHDOG_ECHO = False
 
     def create_transaction(self, url, con_name):
-        engine = create_engine(config.db.url, echo=self.CONNECTION_ECHO, logging_name="engine" + con_name)
+        engine = create_engine(
+            config.db.url, echo=self.CONNECTION_ECHO, logging_name="engine" + con_name
+        )
         session = engine.connect().execution_options(autocommit=False)
         return engine, session
 
@@ -37,11 +42,13 @@ class MetadataTest(fixtures.TablesTest):
 
         with pytest.raises(Exception):
             self.run_deadlock_for_table(with_fallback)
-    
+
     def test_no_deadlock_for_get_columns_without_fallback(self):
         def without_fallback(session2, schema, table):
             dialect = EXADialect()
-            dialect.get_columns(session2, schema=schema, table_name=table, use_sql_fallback=False)
+            dialect.get_columns(
+                session2, schema=schema, table_name=table, use_sql_fallback=False
+            )
 
         self.run_deadlock_for_table(without_fallback)
 
@@ -49,36 +56,45 @@ class MetadataTest(fixtures.TablesTest):
         # TODO: Doesnt produce a deadlock anymore since last commit?
         def with_fallback(session2, schema, table):
             dialect = EXADialect()
-            dialect.get_columns(session2, schema=schema, table_name=table, use_sql_fallback=True)
+            dialect.get_columns(
+                session2, schema=schema, table_name=table, use_sql_fallback=True
+            )
 
         self.run_deadlock_for_table(with_fallback)
 
     def test_no_deadlock_for_get_pk_constraint_without_fallback(self):
         def without_fallback(session2, schema, table):
             dialect = EXADialect()
-            dialect.get_pk_constraint(session2, table_name=table, schema=schema, use_sql_fallback=False)
+            dialect.get_pk_constraint(
+                session2, table_name=table, schema=schema, use_sql_fallback=False
+            )
 
         self.run_deadlock_for_table(without_fallback)
 
     def test_no_deadlock_for_get_pk_constraint_with_fallback(self):
         def with_fallback(session2, schema, table):
             dialect = EXADialect()
-            dialect.get_pk_constraint(session2, table_name=table, schema=schema, use_sql_fallback=True)
+            dialect.get_pk_constraint(
+                session2, table_name=table, schema=schema, use_sql_fallback=True
+            )
 
         self.run_deadlock_for_table(with_fallback)
 
     def test_no_deadlock_for_get_foreign_keys_without_fallback(self):
         def without_fallback(session2, schema, table):
             dialect = EXADialect()
-            dialect.get_foreign_keys(session2, table_name=table, schema=schema, use_sql_fallback=False)
+            dialect.get_foreign_keys(
+                session2, table_name=table, schema=schema, use_sql_fallback=False
+            )
 
         self.run_deadlock_for_table(without_fallback)
-
 
     def test_no_deadlock_for_get_foreign_keys_with_fallback(self):
         def with_fallback(session2, schema, table):
             dialect = EXADialect()
-            dialect.get_foreign_keys(session2, table_name=table, schema=schema, use_sql_fallback=True)
+            dialect.get_foreign_keys(
+                session2, table_name=table, schema=schema, use_sql_fallback=True
+            )
 
         self.run_deadlock_for_table(with_fallback)
 
@@ -86,7 +102,9 @@ class MetadataTest(fixtures.TablesTest):
         # TODO: think of other scenarios where metadata deadlocks with view could happen
         def without_fallback(session2, schema, table):
             dialect = EXADialect()
-            dialect.get_view_names(session2, table_name=table, schema=schema, use_sql_fallback=False)
+            dialect.get_view_names(
+                session2, table_name=table, schema=schema, use_sql_fallback=False
+            )
 
         self.run_deadlock_for_table(without_fallback)
 
@@ -94,7 +112,9 @@ class MetadataTest(fixtures.TablesTest):
         # TODO: think of other scenarios where metadata deadlocks with view could happen
         def with_fallback(session2, schema, table):
             dialect = EXADialect()
-            dialect.get_view_names(session2, table_name=table, schema=schema, use_sql_fallback=True)
+            dialect.get_view_names(
+                session2, table_name=table, schema=schema, use_sql_fallback=True
+            )
 
         self.run_deadlock_for_table(with_fallback)
 
@@ -117,7 +137,9 @@ class MetadataTest(fixtures.TablesTest):
             if self.WATCHDOG_ECHO:
                 print("===========================================")
                 print()
-            time.sleep(10) # Only change with care, lower values might make tests unreliable
+            time.sleep(
+                10
+            )  # Only change with care, lower values might make tests unreliable
 
     def run_deadlock_for_table(self, function):
         c1 = config.db.connect()
@@ -130,10 +152,13 @@ class MetadataTest(fixtures.TablesTest):
         except:
             pass
         session0.execute("CREATE SCHEMA %s" % schema)
-        session0.execute("CREATE OR REPLACE TABLE %s.deadlock_test1 (id int PRIMARY KEY)" % schema)
         session0.execute(
-            "CREATE OR REPLACE TABLE %s.deadlock_test2 (id int PRIMARY KEY, fk int REFERENCES %s.deadlock_test1(id))" % (
-                schema, schema))
+            "CREATE OR REPLACE TABLE %s.deadlock_test1 (id int PRIMARY KEY)" % schema
+        )
+        session0.execute(
+            "CREATE OR REPLACE TABLE %s.deadlock_test2 (id int PRIMARY KEY, fk int REFERENCES %s.deadlock_test1(id))"
+            % (schema, schema)
+        )
         session0.execute("INSERT INTO %s.deadlock_test1 VALUES 1" % schema)
         session0.execute("INSERT INTO %s.deadlock_test2 VALUES (1,1)" % schema)
         session0.execute("commit")
@@ -176,9 +201,13 @@ class MetadataTest(fixtures.TablesTest):
         except:
             pass
         session0.execute("CREATE SCHEMA %s" % schema)
-        session0.execute("CREATE OR REPLACE TABLE %s.deadlock_test_table (id int)" % schema)
         session0.execute(
-            "CREATE OR REPLACE VIEW %s.deadlock_test_view_1 AS SELECT * FROM %s.deadlock_test_table" % (schema, schema))
+            "CREATE OR REPLACE TABLE %s.deadlock_test_table (id int)" % schema
+        )
+        session0.execute(
+            "CREATE OR REPLACE VIEW %s.deadlock_test_view_1 AS SELECT * FROM %s.deadlock_test_table"
+            % (schema, schema)
+        )
         session0.execute("commit")
         self.watchdog_run = True
         t1 = Thread(target=self.watchdog, args=(session0, schema))
@@ -189,8 +218,9 @@ class MetadataTest(fixtures.TablesTest):
 
             session1.execute("SELECT * FROM %s.deadlock_test_view_1" % schema)
             session1.execute(
-                "CREATE OR REPLACE VIEW %s.deadlock_test_view_2 AS SELECT * FROM %s.deadlock_test_table" % (
-                    schema, schema))
+                "CREATE OR REPLACE VIEW %s.deadlock_test_view_2 AS SELECT * FROM %s.deadlock_test_table"
+                % (schema, schema)
+            )
 
             engine3, session3 = self.create_transaction(url, "transaction3")
             session3.execute("SELECT 1")

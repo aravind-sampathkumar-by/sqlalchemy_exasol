@@ -9,6 +9,20 @@ from sqlalchemy_exasol import base, pyodbc
 base.dialect = pyodbc.dialect
 
 __all__ = (
-    'BLOB', 'BOOLEAN', 'CHAR', 'DATE', 'DATETIME', 'DECIMAL', 'FLOAT', 'INTEGER',
-    'NUMERIC', 'SMALLINT', 'TEXT', 'TIME', 'TIMESTAMP', 'VARCHAR', 'dialect', 'REAL'
+    "BLOB",
+    "BOOLEAN",
+    "CHAR",
+    "DATE",
+    "DATETIME",
+    "DECIMAL",
+    "FLOAT",
+    "INTEGER",
+    "NUMERIC",
+    "SMALLINT",
+    "TEXT",
+    "TIME",
+    "TIMESTAMP",
+    "VARCHAR",
+    "dialect",
+    "REAL",
 )
