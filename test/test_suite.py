@@ -3,9 +3,9 @@ import pytest
 
 from sqlalchemy.testing.suite import *  # noqa: F403, F401
 from sqlalchemy.testing.suite import DifficultParametersTest as _DifficultParametersTest
+from sqlalchemy.testing.suite import ComponentReflectionTest as _ComponentReflectionTest
 from sqlalchemy.testing import is_false
 from sqlalchemy.testing.suite import HasIndexTest as _HasIndexTest
-from sqlalchemy.testing.suite import HasTableTest as _HasTableTest
 from sqlalchemy.testing.suite import RowCountTest as _RowCountTest
 from sqlalchemy.testing.suite import FetchLimitOffsetTest as _FetchLimitOffsetTest
 from sqlalchemy.testing.suite import LongNameBlowoutTest as _LongNameBlowoutTest
@@ -150,35 +150,6 @@ class RowCountTest(_RowCountTest):
         eq_(r.rowcount, 2)
 
 
-class HasTableTest(_HasTableTest):
-    pass
-
-    def test_has_table(self):
-        with config.db.begin() as conn:
-            is_true(config.db.dialect.has_table(conn, "test_table"))
-            is_true(config.db.dialect.has_table(conn, "test_table_s"))
-            is_false(config.db.dialect.has_table(conn, "nonexistent_table"))
-
-    @testing.requires.schemas
-    def test_has_table_schema(self):
-        with config.db.begin() as conn:
-            is_true(
-                config.db.dialect.has_table(
-                    conn, "test_table", schema=config.test_schema
-                )
-            )
-            is_true(
-                config.db.dialect.has_table(
-                    conn, "test_table_s", schema=config.test_schema
-                )
-            )
-            is_false(
-                config.db.dialect.has_table(
-                    conn, "nonexistent_table", schema=config.test_schema
-                )
-            )
-
-
 class HasIndexTest(_HasIndexTest):
     @pytest.mark.skip()
     def test_has_index(self):
@@ -235,3 +206,9 @@ class DifficultParametersTest(_DifficultParametersTest):
 
         # name works as the key from cursor.description
         eq_(row._mapping[name], "some name")
+
+
+class ComponentReflectionTest(_ComponentReflectionTest):
+    @pytest.mark.skip()
+    def test_get_indexes(self, connection, use_schema):
+        return
