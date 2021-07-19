@@ -1,8 +1,31 @@
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.schema import Column
 from sqlalchemy.sql import crud
-from sqlalchemy.sql.base import _generative
+from sqlalchemy.sql.base import _generative, CompileState
 from sqlalchemy.sql.expression import ValuesBase, and_, UpdateBase, ColumnClause
+from sqlalchemy.sql.dml import DMLState
+
+
+@CompileState.plugin_for("default", "merge")
+class MergeDMLState(DMLState):
+    ismerge = True
+
+    include_table_with_column_exprs = False
+
+    def __init__(self, statement, compiler, **kw):
+        self.statement = statement
+
+        self.ismerge = True
+        self._preserve_parameter_order = statement._preserve_parameter_order
+        if statement._ordered_values is not None:
+            self._process_ordered_values(statement)
+        if statement._select_names:
+            self._process_select_values(statement)
+        if statement._values is not None:
+            self._process_values(statement)
+        if statement._multi_values:
+            self._process_multi_values(statement)
+
 
 
 class Merge(UpdateBase):
